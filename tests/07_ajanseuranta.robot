@@ -5,7 +5,7 @@ Documentation    Testijoukko 7: Ajanseuranta.
 ...    ajan laskennan ja ristiriitojen käsittelyn rajapinnassa, ajastimen poiston
 ...    tehtävän mukana, aikakirjausten muokkauksen ja poiston, ajastimen vaihdon
 ...    toiseen tehtävään sekä Time-sivun projektivalinnan säilymisen.
-...    Kattaa testitapaukset TC06-001 - TC06-012 ja TC06-015.
+...    Kattaa testitapaukset TC06-001 - TC06-012, TC06-015 ja TC06-016.
 ...    Esivaatimus: .env-tiedoston testitili on luotu sovellukseen.
 Resource    ../resources/yhteiset.robot
 Suite Setup    Valmistele Ajanseurantatestit
@@ -211,6 +211,22 @@ Time-sivun projektivalinta säilyy sivun päivityksen yli
     Click    .sidebar-item >> text="Time"
     Wait For Elements State    h1 >> text="Time"    visible    timeout=10s
     Get Selected Options    id=time-project    value    ==    ${PROJEKTI_ID}
+
+No project -valinta tallentuu Time-sivulla
+    [Documentation]    TC06-016. Odotettu tulos: kun Time-sivun projektivalikosta
+    ...    valitaan "No project", valinta tallentuu ilman virheilmoitusta ja säilyy sivun
+    ...    päivityksen yli.
+    [Tags]    selain
+    Click    .sidebar-item >> text="Time"
+    Wait For Elements State    h1 >> text="Time"    visible    timeout=10s
+    Select Options By    id=time-project    value    no-project
+    Wait For Load State    networkidle    timeout=10s
+    Get Element Count    text="Invalid ID"    ==    0
+    Reload
+    Click    .sidebar-item >> text="Time"
+    Wait For Elements State    h1 >> text="Time"    visible    timeout=10s
+    Get Selected Options    id=time-project    value    ==    no-project
+    Get Element Count    text="Invalid ID"    ==    0
 
 
 *** Keywords ***

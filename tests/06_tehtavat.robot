@@ -1,9 +1,11 @@
 *** Settings ***
 Documentation    Testijoukko 6: Tehtävät ja alatehtävät.
 ...    Testaa tehtävien luonnin, muokkauksen, tilan vaihdon valikosta ja raahaamalla,
-...    alatehtävät, päätehtävän poiston, kirjatun ajan poiston tehtävän mukana ja
-...    projektivalinnan säilymisen selaimessa kuten oikea käyttäjä.
-...    Kattaa testitapaukset TC05-001, TC05-002, TC05-004 - TC05-011 ja TC05-014.
+...    tilan ja päivämäärien yhtenäisyyden, alatehtävät, päätehtävän poiston,
+...    kirjatun ajan poiston tehtävän mukana sekä projektivalinnan säilymisen
+...    selaimessa kuten oikea käyttäjä.
+...    Kattaa testitapaukset TC05-001, TC05-002, TC05-004 - TC05-011 ja
+...    TC05-014 - TC05-017.
 ...    Esivaatimus: .env-tiedoston testitili on luotu sovellukseen.
 Resource    ../resources/yhteiset.robot
 Suite Setup    Valmistele Tehtavatestit
@@ -189,6 +191,63 @@ Tilan vaihto raahaamalla tallentuu
     ${vastaus}=    Tee Kirjautunut Pyynto    GET    /tasks/${tehtava_id}
     Should Be Equal    ${vastaus.json()}[status]    completed
 
+Lomakkeen valmistumispäivä siirtää tehtävän valmiiksi
+    [Documentation]    TC05-015. Odotettu tulos: kun muokkauslomakkeessa täytetään
+    ...    Completed date, lomakkeen tila vaihtuu heti Completed-tilaksi. Tallennuksen
+    ...    jälkeen tehtävä on Completed-sarakkeessa, ja rajapinnassa sen tila on
+    ...    completed ja valmistumispäivä on annettu päivä.
+    [Tags]    selain
+    ${otsikko}=    Set Variable    ${ETULIITE} valmistumispäivä
+    ${tehtava_id}=    Luo Tehtava Rajapinnalla    ${otsikko}
+    Reload
+    Mene Testiprojektin Tehtaviin
+    Click    ${KORTTI}:has(h3:text-is("${otsikko}")) >> button >> text="Edit"
+    Wait For Elements State    role=dialog >> text="Edit task"    visible    timeout=5s
+    Fill Text    ${KENTTA_VALMISTUMISPAIVA}    2026-06-10
+    Get Selected Options    ${KENTTA_TILA}    value    ==    completed
+    Click    ${TALLENNA}
+    ${kortti}=    Set Variable    ${KORTTI}:has(h3:text-is("${otsikko}"))
+    Wait For Elements State    ${SARAKE.format("Completed")} >> ${kortti}    visible    timeout=10s
+    ${vastaus}=    Tee Kirjautunut Pyynto    GET    /tasks/${tehtava_id}
+    Should Be Equal    ${vastaus.json()}[status]    completed
+    Should Start With    ${vastaus.json()}[completedDate]    2026-06-10
+
+Palautus aiempaan tilaan tyhjentää valmistumispäivän
+    [Documentation]    TC05-016. Odotettu tulos: kun valmis tehtävä raahataan takaisin
+    ...    Not started -sarakkeeseen, sen tila on todo ja valmistumispäivä tyhjennetään,
+    ...    jotta kalenteri ja aikajana eivät näytä tehtävää valmiina. Aloituspäivä
+    ...    säilyy.
+    [Tags]    selain
+    ${otsikko}=    Set Variable    ${ETULIITE} palautettava
+    ${tehtava_id}=    Luo Tehtava Rajapinnalla    ${otsikko}    status=completed
+    ...    startDate=2026-06-01    completedDate=2026-06-10
+    Reload
+    Mene Testiprojektin Tehtaviin
+    ${kortti}=    Set Variable    ${KORTTI}:has(h3:text-is("${otsikko}"))
+    Wait For Elements State    ${SARAKE.format("Completed")} >> ${kortti}    visible    timeout=10s
+    Raahaa Tehtava Sarakkeeseen    ${otsikko}    Not started
+    Wait For Elements State    ${SARAKE.format("Not started")} >> ${kortti}    visible    timeout=10s
+    ${vastaus}=    Tee Kirjautunut Pyynto    GET    /tasks/${tehtava_id}
+    Should Be Equal    ${vastaus.json()}[status]    todo
+    Should Be Equal    ${vastaus.json()}[completedDate]    ${None}
+    ...    msg=Valmistumispäivä jäi voimaan, vaikka tehtävä palautettiin
+    Should Start With    ${vastaus.json()}[startDate]    2026-06-01
+
+No project -valinta tallentuu Tasks-sivulla
+    [Documentation]    TC05-017. Odotettu tulos: kun Tasks-sivun projektivalikosta
+    ...    valitaan "No project", valinta tallentuu ilman virheilmoitusta ja säilyy sivun
+    ...    päivityksen yli.
+    [Tags]    selain
+    Select Options By    id=tasks-project    value    no-project
+    Wait For Load State    networkidle    timeout=10s
+    Get Element Count    text="Invalid ID"    ==    0
+    Reload
+    Click    .sidebar-item >> text="Tasks"
+    Wait For Elements State    h1 >> text="Tasks"    visible    timeout=10s
+    Get Selected Options    id=tasks-project    value    ==    no-project
+    Get Element Count    text="Invalid ID"    ==    0
+    [Teardown]    Run Keyword And Ignore Error    Mene Testiprojektin Tehtaviin
+
 
 *** Keywords ***
 Valmistele Tehtavatestit
@@ -207,7 +266,9 @@ Valmistele Tehtavatestit
     Set Suite Variable    ${SARAKE}    .task-column:has(.task-column-header h3:text-is("{}"))
     Set Suite Variable    ${KENTTA_OTSIKKO}    .task-form-grid label:has-text("Title") input
     Set Suite Variable    ${KENTTA_PRIORITEETTI}    .task-form-grid label:has-text("Priority") select
+    Set Suite Variable    ${KENTTA_TILA}    .task-form-grid label:has-text("Status") select
     Set Suite Variable    ${KENTTA_PAATEHTAVA}    .task-form-grid label:has-text("Parent task") select
+    Set Suite Variable    ${KENTTA_VALMISTUMISPAIVA}    .task-form-grid label:has-text("Completed date") input
     Set Suite Variable    ${KENTTA_KUVAUS}    .task-form-grid label:has-text("Description") textarea
     Set Suite Variable    ${TALLENNA}    .task-save-button
     Reload
