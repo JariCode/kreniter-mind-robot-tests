@@ -436,16 +436,15 @@ Pyyda Tehtavaa Kayttoliittymassa
 Laheta Viesti Kayttoliittymassa
     [Documentation]    Kirjoittaa viestin AI Assistantin viestikenttään, lähettää sen
     ...    Send message -painikkeella ja odottaa AI:n vastausta enintään 60 sekuntia.
+    ...    Kirjoitusanimaatiota ei lasketa vastaukseksi, ja vastaus on valmis, kun
+    ...    viestikenttä on taas käytössä.
     [Arguments]    ${viesti}
-    ${vastauksia}=    Get Element Count    .assistant-message-assistant
+    ${vastaus}=    Set Variable    .assistant-message-assistant:not(:has(.assistant-typing))
+    ${vastauksia}=    Get Element Count    ${vastaus}
     Fill Text    textarea[aria-label="Message Kreniter"]    ${viesti}
     Click    button[aria-label="Send message"]
-    FOR    ${i}    IN RANGE    60
-        ${nyt}=    Get Element Count    .assistant-message-assistant
-        IF    ${nyt} > ${vastauksia}    BREAK
-        Sleep    1s
-    END
-    ${nyt}=    Get Element Count    .assistant-message-assistant
+    Wait For Elements State    textarea[aria-label="Message Kreniter"]    enabled    timeout=60s
+    ${nyt}=    Get Element Count    ${vastaus}
     Should Be True    ${nyt} > ${vastauksia}    msg=AI ei vastannut 60 sekunnissa
     Wait For Load State    networkidle    timeout=10s
 
